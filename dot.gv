@@ -1,0 +1,25 @@
+digraph {
+  node [shape=circle];
+  A -> B
+  B -> D
+  C -> M
+  D -> F
+  E -> F
+  C -> E
+  C -> D
+  F -> G
+  F -> H
+  F -> I
+  F -> J
+  F -> K
+  H -> L
+  I -> L
+  J -> L
+  E -> L
+  L -> D
+  J -> K
+  Z -> F
+  Z -> J
+  B -> I
+  L -> K
+}
