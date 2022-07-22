@@ -1,106 +1,96 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 use std::io;
 use std::process::{ExitCode, Termination};
 
+// Two things I would improve:
+// Only iterate roots
+// Use a BTreeMap to store tree state for constant lookup times and ordering
+
 fn main() -> Exit {
-    let mut edges: Vec<Edge> = Vec::new();
+    let mut g: HashMap<Node, Vec<Node>> = HashMap::new();
+    let mut sinks: HashSet<Node> = HashSet::new();
+    let mut sources: HashSet<Node> = HashSet::new();
 
     for input_line in io::stdin().lines() {
         match input_line {
             Ok(line) => {
                 let mut chars = line.chars();
                 if let (Some(source), Some(sink)) = (&chars.next(), &chars.next()) {
+                    let (source, sink) = (Node(*source), Node(*sink));
+
+                    sinks.insert(sink.to_owned());
+                    sources.insert(source.to_owned());
+
                     if source == sink {
-                        println!("{}", source);
+                        println!("{}", source.0);
                         return Exit::Cycle;
                     } else {
-                        edges.push(Edge {
-                            source: Node(*source),
-                            sink: Node(*sink),
-                        });
+                        if let Some(out_degrees) = g.get_mut(&source) {
+                            out_degrees.push(sink.to_owned());
+                        } else {
+                            g.insert(source.to_owned(), vec![sink.to_owned()]);
+                        }
                     }
                 } else {
-                    // Input must be two characters
+                    // Must be at least two characters; beyond 2 scalars are ignored
                     return Exit::InvalidInput;
                 }
             }
             Err(_input_error) => {
-                // Input must be valid UTF-8
-                return Exit::InvalidInput;
+                return Exit::InvalidInput; // Must be valid UTF-8
             }
         }
     }
 
-    // g for graph, as an adjacency list
-    let mut g: HashMap<Node, Vec<Node>> = HashMap::new();
+    // All sources that are not sinks are roots
+    let roots: Vec<&Node> = sources.difference(&sinks).collect();
 
-    // build the list of roots here; they are never listed in as a 'sink'
+    // let mut m: BTreeMap<Node, usize> = BTreeMap::new();
 
-    for edge in &edges {
-        if let Some(out_degrees) = g.get_mut(&edge.source) {
-            out_degrees.push(edge.sink.to_owned());
-        } else {
-            g.insert(edge.source.to_owned(), vec![edge.sink.to_owned()]);
-        }
-    }
+    for root in roots {
+        let mut path: Vec<Node> = Vec::new();
+        let mut indicies: Vec<usize> = Vec::new();
 
-    for node in g.keys() {
-        // separating 'state' should solve the extra ownership problem.
-        let mut set: Vec<Node> = Vec::new();
-        set.push(node.to_owned());
-        let mut path: Vec<State> = Vec::new();
-        path.push(State {
-            node: node.to_owned(),
-            index: 0,
-        });
-        // if path.iter().any(|s| s.node == node.to_owned()) { return Exit::Cycle; }
+        path.push(root.to_owned());
+        indicies.push(0);
 
-        loop {
-            println!("{:?}", &path);
-            if let Some(State { node, index }) = path.last_mut() {
-                if let Some(descendants) = g.get(node) {
-                    // find roots and iterate them instead.
-                    if let Some(next) = &descendants.get(*index) {
-                        // how to get a ref to path to check??? snapshot?
-                        if set.contains(next) {
-                            // find the slice of the cycle by finding the index of 'next'
-                            // and slicing starting from there
-                            println!("{:?}", &set);
-                            return Exit::Cycle;
+        while let (Some(node), Some(index)) = (path.last_mut(), indicies.last_mut()) {
+            if let Some(descendants) = g.get(node) {
+                if let Some(next) = &descendants.get(*index) {
+                    // 😬
+                    if let Some((idx, _)) = path.iter().enumerate().find(|(_idx, n)| n == next) {
+                        for n in &path[idx..] {
+                            println!("{}", n.0);
                         }
-                        *index += 1;
-                        if g.get(next).is_some() {
-                            set.push(next.to_owned().to_owned());
-                            path.push(State {
-                                node: next.to_owned().to_owned(),
-                                index: 0,
-                            });
-                        }
-                        continue; // go to next loop
+                        return Exit::Cycle;
                     }
-                    // will pop if the index is invalid; the next index will be checked
+
+                    *index += 1;
+
+                    if g.get(next).is_some() {
+
+                        path.push(next.to_owned().to_owned());
+                        indicies.push(0);
+
+                    }
+                    continue;
                 }
-                set.pop();
-                path.pop();
-            } else {
-                break;
             }
+
+            path.pop();
         }
     }
 
     Exit::NoCycle
 }
 
-#[derive(Debug)]
-struct State {
-    node: Node,
-    index: usize,
-}
+#[derive(Hash, Clone, Debug, Eq)]
+struct Node(char);
 
-impl std::fmt::Display for State {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}:{}", self.node.0, self.index)
+impl PartialEq for Node {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
     }
 }
 
@@ -109,21 +99,6 @@ enum Exit {
     NoCycle = 0,
     Cycle = 1,
     InvalidInput = 2,
-}
-
-#[derive(Debug)]
-struct Edge {
-    source: Node,
-    sink: Node,
-}
-
-#[derive(Eq, Hash, Clone, Debug)]
-struct Node(char);
-
-impl PartialEq for Node {
-    fn eq(&self, other: &Self) -> bool {
-        self.0 == other.0
-    }
 }
 
 impl Termination for Exit {
