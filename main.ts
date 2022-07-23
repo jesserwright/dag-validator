@@ -1,3 +1,5 @@
+// Generate GraphViz files
+
 import { readLines } from "https://deno.land/std@0.148.0/io/mod.ts";
 
 const fileReader = await Deno.open("./test.txt");

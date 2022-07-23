@@ -1,22 +1,26 @@
 digraph {
   node [shape=circle];
+  F [color="red"]
+  D [color="red"]
+  H [color="red"]
+  L [color="red"]
   A -> B
   B -> D
   C -> M
-  D -> F
+  D -> F [color="red"]
   E -> F
   C -> E
   C -> D
   F -> G
-  F -> H
+  F -> H [color="red"]
   F -> I
   F -> J
   F -> K
-  H -> L
+  H -> L [color="red"]
   I -> L
   J -> L
   E -> L
-  L -> D
+  L -> D [color="red"]
   J -> K
   Z -> F
   Z -> J
